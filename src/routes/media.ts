@@ -1,15 +1,15 @@
-// src/routes/media.ts
 import express, { RequestHandler } from 'express';
 import { Media, MediaType } from '../models/Media';
 import { Point } from '../models/Points';
 
 const router = express.Router();
 
-interface AddMediaBody {
+// Interfaces pour le typage des requêtes
+interface CreateMediaBody {
   title: string;
-  description?: string;
   type: MediaType;
   content: string;
+  pointId: string;
   metadata: {
     image?: {
       width: number;
@@ -40,46 +40,50 @@ interface AddMediaBody {
       styles: boolean;
     };
   };
-  pointId: string;
-  userId: string;
-  order?: number;
-  tags?: string[];
 }
 
-// Ajouter un média
-const addMedia: RequestHandler<{}, {}, AddMediaBody> = async (req, res, next) => {
+// Créer un média
+const createMedia: RequestHandler<{}, {}, CreateMediaBody> = async (
+  req,
+  res,
+  next
+): Promise<void> => {
   try {
-    const mediaData = req.body;
+    const { title, type, content, pointId, metadata } = req.body;
 
-    // Vérifier si le point existe
-    const point = await Point.findById(mediaData.pointId);
-    if (!point) {
-      res.status(404).json({ error: "Point d'intérêt introuvable." });
+    if (!title || !type || !content || !pointId) {
+      res.status(400).json({ error: 'Tous les champs requis ne sont pas remplis.' });
       return;
     }
 
-    const media = new Media(mediaData);
-    await media.save();
+    const point = await Point.findById(pointId);
+    if (!point) {
+      res.status(404).json({ error: 'Point non trouvé.' });
+      return;
+    }
 
-    // Mettre à jour le point avec la référence du média
-    await Point.findByIdAndUpdate(
-      mediaData.pointId,
-      { $push: { medias: media._id } }
-    );
+    const media = new Media({ title, type, content, pointId, metadata });
+    const savedMedia = await media.save();
 
-    res.status(201).json(media);
+    // Ajouter le média au point
+    point.medias.push(savedMedia._id as any);
+    await point.save();
+
+    res.status(201).json(savedMedia);
   } catch (error) {
     next(error);
   }
 };
 
 // Récupérer les médias d'un point
-const getPointMedias: RequestHandler<{ pointId: string }> = async (req, res, next) => {
+const getPointMedias: RequestHandler<{ pointId: string }> = async (
+  req,
+  res,
+  next
+): Promise<void> => {
   try {
     const { pointId } = req.params;
-
-    const medias = await Media.find({ pointId })
-      .sort({ order: 1, createdAt: -1 });
+    const medias = await Media.find({ pointId }).sort({ order: 1 });
 
     res.status(200).json(medias);
   } catch (error) {
@@ -87,54 +91,18 @@ const getPointMedias: RequestHandler<{ pointId: string }> = async (req, res, nex
   }
 };
 
-// Récupérer un média spécifique
-const getMedia: RequestHandler<{ id: string }> = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const media = await Media.findById(id);
-    if (!media) {
-      res.status(404).json({ error: "Média introuvable." });
-      return;
-    }
-
-    res.status(200).json(media);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Mettre à jour un média
-const updateMedia: RequestHandler<{ id: string }, {}, Partial<AddMediaBody>> = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-
-    const media = await Media.findByIdAndUpdate(
-      id,
-      updates,
-      { new: true, runValidators: true }
-    );
-
-    if (!media) {
-      res.status(404).json({ error: "Média introuvable." });
-      return;
-    }
-
-    res.status(200).json(media);
-  } catch (error) {
-    next(error);
-  }
-};
-
 // Supprimer un média
-const deleteMedia: RequestHandler<{ id: string }> = async (req, res, next) => {
+const deleteMedia: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next
+): Promise<void> => {
   try {
     const { id } = req.params;
-
     const media = await Media.findById(id);
+
     if (!media) {
-      res.status(404).json({ error: "Média introuvable." });
+      res.status(404).json({ error: 'Média non trouvé.' });
       return;
     }
 
@@ -144,37 +112,16 @@ const deleteMedia: RequestHandler<{ id: string }> = async (req, res, next) => {
       { $pull: { medias: id } }
     );
 
-    await Media.findByIdAndDelete(id);
-    res.status(200).json({ message: "Média supprimé avec succès." });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Réorganiser l'ordre des médias
-const reorderMedias: RequestHandler<{ pointId: string }, {}, { mediaIds: string[] }> = async (req, res, next) => {
-  try {
-    const { pointId } = req.params;
-    const { mediaIds } = req.body;
-
-    // Mettre à jour l'ordre de chaque média
-    await Promise.all(mediaIds.map((mediaId, index) => 
-      Media.findByIdAndUpdate(mediaId, { order: index })
-    ));
-
-    const updatedMedias = await Media.find({ pointId }).sort({ order: 1 });
-    res.status(200).json(updatedMedias);
+    await Media.deleteOne({ _id: id });
+    res.status(200).json({ message: 'Média supprimé avec succès.' });
   } catch (error) {
     next(error);
   }
 };
 
 // Routes
-router.post('/', addMedia);
+router.post('/', createMedia);
 router.get('/point/:pointId', getPointMedias);
-router.get('/:id', getMedia);
-router.put('/:id', updateMedia);
 router.delete('/:id', deleteMedia);
-router.put('/point/:pointId/reorder', reorderMedias);
 
 export default router;

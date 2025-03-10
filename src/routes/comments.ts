@@ -4,64 +4,93 @@ import { Point } from '../models/Points';
 
 const router = express.Router();
 
-interface AddCommentBody {
+// Interfaces pour le typage des requêtes
+interface CreateCommentBody {
   content: string;
   userId: string;
 }
 
-const addComment: RequestHandler<{ pointId: string }, {}, AddCommentBody> = async (req, res, next) => {
+interface CommentParams {
+  pointId: string;
+}
+
+// Ajouter un commentaire
+const createComment: RequestHandler<CommentParams, {}, CreateCommentBody> = async (
+  req,
+  res,
+  next
+): Promise<void> => {
   try {
-    const { content, userId } = req.body;
     const { pointId } = req.params;
+    const { content, userId } = req.body;
+
+    if (!content || !userId) {
+      res.status(400).json({ error: 'Tous les champs requis ne sont pas remplis.' });
+      return;
+    }
 
     const point = await Point.findById(pointId);
     if (!point) {
-      res.status(404).json({ error: "Point d'intérêt introuvable." });
+      res.status(404).json({ error: 'Point non trouvé.' });
       return;
     }
 
     const comment = new Comment({
       content,
       userId,
-      pointId,
+      pointId
     });
 
-    await comment.save();
-    res.status(201).json(comment);
+    const savedComment = await comment.save();
+    res.status(201).json(savedComment);
   } catch (error) {
     next(error);
   }
 };
 
-const getComments: RequestHandler<{ pointId: string }> = async (req, res, next) => {
+// Récupérer les commentaires d'un point
+const getPointComments: RequestHandler<CommentParams> = async (
+  req,
+  res,
+  next
+): Promise<void> => {
   try {
     const { pointId } = req.params;
+    const comments = await Comment.find({ pointId })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'username'); // Populate user info if needed
 
-    const comments = await Comment.find({ pointId }).sort({ createdAt: -1 });
     res.status(200).json(comments);
   } catch (error) {
     next(error);
   }
 };
 
-const deleteComment: RequestHandler<{ id: string }> = async (req, res, next) => {
+// Supprimer un commentaire
+const deleteComment: RequestHandler<{ id: string }> = async (
+  req,
+  res,
+  next
+): Promise<void> => {
   try {
     const { id } = req.params;
+    const comment = await Comment.findById(id);
 
-    const result = await Comment.findByIdAndDelete(id);
-    if (!result) {
-      res.status(404).json({ error: "Commentaire introuvable." });
+    if (!comment) {
+      res.status(404).json({ error: 'Commentaire non trouvé.' });
       return;
     }
 
-    res.status(200).json({ message: "Commentaire supprimé avec succès." });
+    await comment.deleteOne();
+    res.status(200).json({ message: 'Commentaire supprimé avec succès.' });
   } catch (error) {
     next(error);
   }
 };
 
-router.post('/:pointId', addComment);
-router.get('/:pointId', getComments);
+// Routes
+router.post('/:pointId', createComment);
+router.get('/:pointId', getPointComments);
 router.delete('/:id', deleteComment);
 
 export default router;
