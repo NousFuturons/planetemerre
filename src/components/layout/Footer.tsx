@@ -1,13 +1,29 @@
 // src/components/layout/Footer.tsx
-import { Box, Text, Container } from '@chakra-ui/react'
+'use client'
+
+import {
+  Box,
+  Container,
+  Stack,
+  Text,
+  useColorModeValue
+} from '@chakra-ui/react'
 
 export function Footer() {
   return (
-    <Box as="footer" bg="gray.100" py={4}>
-      <Container>
-        <Text textAlign="center">
-          © {new Date().getFullYear()} Futurons! Tous droits réservés.
-        </Text>
+    <Box
+      bg={useColorModeValue('gray.50', 'gray.900')}
+      color={useColorModeValue('gray.700', 'gray.200')}
+    >
+      <Container
+        as={Stack}
+        maxW={'container.xl'}
+        py={4}
+        spacing={4}
+        justify={'center'}
+        align={'center'}
+      >
+        <Text>© 2024 Futurons ! Tous droits réservés</Text>
       </Container>
     </Box>
   )
