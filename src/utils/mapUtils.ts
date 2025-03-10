@@ -7,7 +7,7 @@ export const changeMapStyle = async (
   styleKey: MapStyleKey
 ): Promise<void> => {
   try {
-    await map.setStyle(mapStyles[styleKey])
+    await map.setStyle(mapStyles[styleKey] as any)
     // Réappliquer les personnalisations après le changement de style
     map.once('style.load', () => {
       // Réappliquer les personnalisations ici
