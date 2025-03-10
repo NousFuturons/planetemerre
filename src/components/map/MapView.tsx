@@ -1,4 +1,5 @@
-// src/components/map/MapView.tsx
+'use client'  // Ajouter cette ligne tout en haut du fichier
+
 import { useEffect, useRef } from 'react'
 import { Box } from '@chakra-ui/react'
 import maplibregl from 'maplibre-gl'
