@@ -1,10 +1,26 @@
 // src/config/mapStyles.ts
 export const mapStyles = {
-    // Style de base VersaTiles que nous pouvons personnaliser
-    default: 'https://tiles.versatiles.org/assets/lib/styles/colorful/style.json',
-    // Pour référence future, ajout d'autres styles possibles
-    satellite: 'https://tiles.versatiles.org/assets/lib/styles/satellite/style.json',
-    dark: 'https://tiles.versatiles.org/assets/lib/styles/dark/style.json'
+    // Style de base MapLibre qui est accessible publiquement
+    default: {
+      version: 8,
+      sources: {
+        osm: {
+          type: 'raster',
+          tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '© OpenStreetMap contributors'
+        }
+      },
+      layers: [
+        {
+          id: 'osm',
+          type: 'raster',
+          source: 'osm',
+          minzoom: 0,
+          maxzoom: 19
+        }
+      ]
+    }
   } as const
   
   export type MapStyleKey = keyof typeof mapStyles
